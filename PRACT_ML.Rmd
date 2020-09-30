@@ -1,0 +1,137 @@
+---
+title: "MPL"
+author: "Elena Kotova"
+date: "30 09 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Description
+
+This is final course project on Practical ML. In this project, we will use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to predict the manner in which they did the exercise. We train 3 models: Decision Tree, Random Forest and Gradient Boosted Trees using cross validation on the training set. Then we predict using a set randomly selected from the training data to get the accuracy and error rate out of the sample. Based on these numbers, we select the best model and use it to predict 20 cases using a test Suite.
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+## Download and read data
+
+```{r}
+rm(list = ls())
+library(caret)
+library(randomForest)
+library(rattle)
+library(gbm)
+library(rpart)
+library(rpart.plot)
+library(repmis)
+library(corrplot)
+set.seed(1234)
+
+url1 <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+download.file(url1, "pmltraining.csv")
+training <- read.csv("pmltraining.csv")
+
+url2 <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+download.file(url2, "pmltesting.csv")
+testing <- read.csv("pmltesting.csv")
+
+```
+There are 160 variables, 19622 observations in the training set and 20 observations in the test set.
+
+## Clean data and Create data partition
+
+Removing unnecessary variables (N/A variables, near zero variance variables). 
+
+```{r}
+
+train <- training[,colMeans(is.na(training)) < .9] 
+train <- train[,-c(1:7)] 
+
+nvz <- nearZeroVar(train)
+train <- train[,-nvz]
+
+```
+
+Now when we have finished removing the unnecessary variables, we can split the training set into two sets. 
+
+```{r}
+inTrain <- createDataPartition(y=train$classe, p=0.7, list=F)
+train <- train[inTrain,]
+test <- train[-inTrain,]
+```
+
+## Creating and Testing the Models
+We will test  Decision Trees, Random Forest and Gradient Boosted Trees models.  
+Set up control for training to use 3-fold cross validation.
+
+```{r}
+control <- trainControl(method="cv", number=3, verboseIter=F)
+```
+
+## Decision Tree
+### Model
+```{r}
+mod_trees <- train(classe~., data=train, method="rpart", trControl = control, tuneLength = 5)
+fancyRpartPlot(mod_trees$finalModel)
+```
+
+### Prediction
+```{r}
+pred_trees <- predict(mod_trees, test)
+cmtrees <- confusionMatrix(pred_trees, factor(test$classe))
+cmtrees
+```
+
+## Random Forest
+### Model
+```{r}
+mod_rf <- train(classe~., data=train, method="rf", trControl = control, tuneLength = 5)
+```
+
+##Prediction
+```{r}
+pred_rf <- predict(mod_rf, test)
+cmrf <- confusionMatrix(pred_rf, factor(test$classe))
+cmrf
+
+```
+
+## Gradient Boosted Trees
+### Model
+```{r}
+mod_gbm <- train(classe~., data=train, method="gbm", trControl = control, tuneLength = 5, verbose = F)
+
+```
+
+### Prediction
+```{r}
+pred_gbm <- predict(mod_gbm, test)
+cmgbm <- confusionMatrix(pred_gbm, factor(test$classe))
+cmgbm
+```
+
+The best model is the Random Forest model, with 1 accuracy. Therefore this model is the most accurate and suitable to use.
+
+## Predictions on test set
+```{r}
+pred <- predict(mod_rf, testing)
+print(pred)
+```
+
+
+
+
+
+
+
+
+
+
+
